@@ -1,30 +1,51 @@
-name: BUILD DOCKER
+name: docker-build
 
-on:  
-   push:
+on:
+  push:
     branches:
       - main
 
 jobs:
-  publish-image:
+  multi-arch-push:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Log in to Red Hat Registry
-      uses: redhat-actions/podman-login@v1
-      with:
-        registry: ghcr.io
-        username: murunwas
-        password: ${{ secrets.MYTOKEN }}
-    - run: sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    - name: Buildah Action
-      uses: redhat-actions/buildah-build@v2
-      with:
-        image: ghcr.io/murunwas/cloudflared
-        tags: latest ${{ github.sha }}
-        dockerfiles: |
-          ./Dockerfile
-        build-args: |
-          some_arg=some_value
-    - run: podman push ghcr.io/murunwas/cloudflared:latest
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      - 
+        name: Login to GitHub Registry
+        uses: docker/login-action@v1 
+        with:
+          registry: ghcr.io
+          username: murunwas
+          password: ${{ secrets.MYTOKEN }}
+      -
+         name: Get Latest Tag
+         id: previoustag
+         uses: WyriHaximus/github-action-get-previous-tag@1.0.0
+      -
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/386,linux/arm64,linux/arm/v7,linux/arm/v6,linux/s390x
+          push: true
+          tags: |
+            ghcr.io/murunwas/cloudflared:latest
+            ghcr.io/murunwas/cloudflared:${{ steps.previoustag.outputs.tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
