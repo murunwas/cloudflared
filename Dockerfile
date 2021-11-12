@@ -21,6 +21,6 @@ WORKDIR /
 COPY --from=build /src/cloudflared .
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENV TUNNEL_ORIGIN_CERT=/etc/cloudflared/cert.pem
+#ENV TUNNEL_ORIGIN_CERT=/etc/cloudflared/cert.pem
 ENTRYPOINT ["/cloudflared", "--no-autoupdate"]
 CMD ["version"]
